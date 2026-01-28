@@ -1,0 +1,56 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "title": "Hyperliquid Account",
+        "description": "Enter your Ethereum wallet address to connect to Hyperliquid. Only read-only access is required.",
+        "data": {
+          "wallet_address": "Wallet Address"
+        },
+        "data_description": {
+          "wallet_address": "Your Ethereum wallet address (0x...)"
+        }
+      }
+    },
+    "error": {
+      "invalid_wallet_address": "Invalid wallet address format. Must be 0x followed by 40 hexadecimal characters.",
+      "cannot_connect": "Could not connect to Hyperliquid API. Please verify your wallet address."
+    },
+    "abort": {
+      "already_configured": "This wallet is already configured."
+    }
+  },
+  "options": {
+    "step": {
+      "init": {
+        "title": "Hyperliquid Options",
+        "description": "Configure the update interval for data polling.",
+        "data": {
+          "update_interval": "Update Interval (seconds)"
+        },
+        "data_description": {
+          "update_interval": "How often to fetch data from Hyperliquid (10-300 seconds)"
+        }
+      }
+    }
+  },
+  "entity": {
+    "sensor": {
+      "account_value": {
+        "name": "Account Value"
+      },
+      "unrealized_pnl": {
+        "name": "Unrealized PnL"
+      },
+      "margin_used": {
+        "name": "Margin Used"
+      },
+      "withdrawable": {
+        "name": "Withdrawable"
+      },
+      "total_vault_equity": {
+        "name": "Total Vault Equity"
+      }
+    }
+  }
+}
