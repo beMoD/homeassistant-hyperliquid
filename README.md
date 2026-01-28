@@ -1,8 +1,8 @@
 # Hyperliquid Integration for Home Assistant
 
 [![hacs_badge](https://img.shields.io/badge/HACS-Custom-orange.svg)](https://github.com/custom-components/hacs)
-[![GitHub Release](https://img.shields.io/github/release/yourusername/homeassistant-hyperliquid.svg)](https://github.com/yourusername/homeassistant-hyperliquid/releases)
-[![License](https://img.shields.io/github/license/yourusername/homeassistant-hyperliquid.svg)](LICENSE)
+[![GitHub Release](https://img.shields.io/github/release/beMoD/homeassistant-hyperliquid.svg)](https://github.com/beMoD/homeassistant-hyperliquid/releases)
+[![License](https://img.shields.io/github/license/beMoD/homeassistant-hyperliquid.svg)](LICENSE)
 
 A Home Assistant custom integration for monitoring [Hyperliquid](https://hyperliquid.xyz) perpetual trading accounts, positions, and vault deposits in real-time.
 
@@ -54,7 +54,7 @@ The leader monitoring attributes allow you to track if vault managers are withdr
 2. Go to "Integrations"
 3. Click the three dots in the top right corner
 4. Select "Custom repositories"
-5. Add this repository URL: `https://github.com/yourusername/homeassistant-hyperliquid`
+5. Add this repository URL: `https://github.com/beMoD/homeassistant-hyperliquid`
 6. Select category: "Integration"
 7. Click "Add"
 8. Find "Hyperliquid" in the integration list and click "Download"
@@ -228,6 +228,6 @@ This is an unofficial integration and is not affiliated with or endorsed by Hype
 
 ## Support
 
-- [Report Issues](https://github.com/yourusername/homeassistant-hyperliquid/issues)
+- [Report Issues](https://github.com/beMoD/homeassistant-hyperliquid/issues)
 - [Hyperliquid Documentation](https://hyperliquid.gitbook.io/hyperliquid-docs)
 - [Home Assistant Community](https://community.home-assistant.io/)
