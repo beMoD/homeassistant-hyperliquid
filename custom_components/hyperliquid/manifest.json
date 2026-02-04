@@ -1,12 +1,12 @@
 {
   "domain": "hyperliquid",
   "name": "Hyperliquid",
-  "codeowners": [],
+  "codeowners": ["@beMoD"],
   "config_flow": true,
   "dependencies": [],
-  "documentation": "https://github.com/hyperliquid-dex/hyperliquid-python-sdk",
+  "documentation": "https://github.com/beMoD/homeassistant-hyperliquid",
   "iot_class": "cloud_polling",
-  "issue_tracker": "",
+  "issue_tracker": "https://github.com/beMoD/homeassistant-hyperliquid/issues",
   "requirements": ["hyperliquid-python-sdk==0.21.0"],
-  "version": "0.1.4"
+  "version": "0.1.5"
 }
