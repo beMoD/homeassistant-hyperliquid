@@ -2,7 +2,7 @@
 
 [![hacs_badge](https://img.shields.io/badge/HACS-Custom-orange.svg)](https://github.com/custom-components/hacs)
 [![GitHub Release](https://img.shields.io/github/release/beMoD/homeassistant-hyperliquid.svg)](https://github.com/beMoD/homeassistant-hyperliquid/releases)
-[![License](https://img.shields.io/github/license/beMoD/homeassistant-hyperliquid.svg)](LICENSE)
+[![License](https://img.shields.io/github/license/beMoD/homeassistant-hyperliquid.svg)](https://github.com/beMoD/homeassistant-hyperliquid/blob/master/LICENSE)
 
 A Home Assistant custom integration for monitoring [Hyperliquid](https://hyperliquid.xyz) perpetual trading accounts, positions, and vault deposits in real-time.
 
