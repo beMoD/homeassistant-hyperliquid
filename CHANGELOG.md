@@ -5,10 +5,16 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [0.2.2] - 2025-02-09
+## [0.2.3] - 2025-02-09
 
 ### Fixed
-- Fix missing constants (`CONF_TRADE_HISTORY_COUNT`, `CONF_TRADE_HISTORY_DAYS`, `DEFAULT_TRADE_HISTORY_COUNT`, `DEFAULT_TRADE_HISTORY_DAYS`) in `const.py` that caused an `ImportError` on startup, preventing the integration from loading
+- Add all missing Phase 1 constants to `const.py` that were never committed with v0.2.1 (sensor types, attributes for orders, funding, trades, referrals)
+- Use correct default values from development version (trade history: 20 count / 7 days)
+
+## [0.2.2] - 2025-02-09 [YANKED]
+
+### Fixed
+- Partial fix for missing constants - only added 4 of ~30 missing constants
 
 ## [0.2.1] - 2025-02-05
 

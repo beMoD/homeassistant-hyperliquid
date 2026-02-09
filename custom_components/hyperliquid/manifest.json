@@ -8,5 +8,5 @@
   "iot_class": "cloud_polling",
   "issue_tracker": "",
   "requirements": ["hyperliquid-python-sdk==0.21.0"],
-  "version": "0.2.2"
+  "version": "0.2.3"
 }
