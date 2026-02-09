@@ -7,11 +7,15 @@ DOMAIN = "hyperliquid"
 # Configuration
 CONF_WALLET_ADDRESS = "wallet_address"
 CONF_UPDATE_INTERVAL = "update_interval"
+CONF_TRADE_HISTORY_DAYS = "trade_history_days"
+CONF_TRADE_HISTORY_COUNT = "trade_history_count"
 
 # Defaults
 DEFAULT_UPDATE_INTERVAL = 30  # seconds
 MIN_UPDATE_INTERVAL = 10
 MAX_UPDATE_INTERVAL = 300
+DEFAULT_TRADE_HISTORY_DAYS = 30
+DEFAULT_TRADE_HISTORY_COUNT = 10
 
 # API
 API_BASE_URL = "https://api.hyperliquid.xyz"
