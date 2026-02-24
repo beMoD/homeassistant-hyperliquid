@@ -92,10 +92,23 @@ class HyperliquidDataUpdateCoordinator(DataUpdateCoordinator[HyperliquidAccountD
     def _fetch_all_data(self, wallet_address: str) -> dict[str, Any]:
         """Fetch all data from API (runs in executor)."""
         from hyperliquid.info import Info
-        from datetime import datetime, timedelta
 
-        if self._info is None:
-            self._info = Info(skip_ws=True)
+        try:
+            if self._info is None:
+                self._info = Info(skip_ws=True)
+        except Exception:
+            self._info = None
+            raise
+
+        try:
+            return self._fetch_all_data_inner(wallet_address)
+        except Exception:
+            self._info = None
+            raise
+
+    def _fetch_all_data_inner(self, wallet_address: str) -> dict[str, Any]:
+        """Inner fetch — called after Info is initialized."""
+        from datetime import datetime, timedelta
 
         # Get configuration options
         trade_history_days = self.config_entry.options.get(
