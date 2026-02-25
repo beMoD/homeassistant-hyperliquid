@@ -231,3 +231,11 @@ This is an unofficial integration and is not affiliated with or endorsed by Hype
 - [Report Issues](https://github.com/beMoD/homeassistant-hyperliquid/issues)
 - [Hyperliquid Documentation](https://hyperliquid.gitbook.io/hyperliquid-docs)
 - [Home Assistant Community](https://community.home-assistant.io/)
+
+## Support the Project
+
+If you find this integration useful, consider signing up on Hyperliquid using my referral link — it costs you nothing and helps support development:
+
+**[Sign up with referral link](https://app.hyperliquid.xyz/join/BEMOD)**
+
+Already have an account? Enter code **BEMOD** in the Hyperliquid app under **Referrals**.
