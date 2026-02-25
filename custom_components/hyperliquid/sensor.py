@@ -475,8 +475,7 @@ class HyperliquidAccountSensor(
         self._wallet_address = wallet_address
         short_address = f"{wallet_address[:6]}...{wallet_address[-4:]}"
 
-        # Use v2 suffix to force new entity IDs after fixing naming issue
-        self._attr_unique_id = f"{wallet_address}_{description.key}_v2"
+        self._attr_unique_id = f"{wallet_address}_{description.key}"
 
         # Create descriptive name that becomes entity_id
         sensor_name = description.name if description.name else description.key.replace('_', ' ').title()
