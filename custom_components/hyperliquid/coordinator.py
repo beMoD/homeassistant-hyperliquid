@@ -5,7 +5,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from datetime import timedelta
 import logging
-from typing import Any, TYPE_CHECKING
+from typing import Any
 
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
@@ -108,7 +108,7 @@ class HyperliquidDataUpdateCoordinator(DataUpdateCoordinator[HyperliquidAccountD
 
     def _fetch_all_data_inner(self, wallet_address: str) -> dict[str, Any]:
         """Inner fetch — called after Info is initialized."""
-        from datetime import datetime, timedelta
+        from datetime import datetime, timedelta, timezone
 
         # Get configuration options
         trade_history_days = self.config_entry.options.get(
@@ -149,13 +149,13 @@ class HyperliquidDataUpdateCoordinator(DataUpdateCoordinator[HyperliquidAccountD
             # Portfolio history for P&L tracking
             portfolio_data = self._info.post("/info", {"type": "portfolio", "user": wallet_address}) or {}
         except Exception as err:
-            _LOGGER.warning("Failed to fetch portfolio data: %s", err)
-            _LOGGER.warning("Endpoint used: portfolio, Wallet: %s", wallet_address)
+            _LOGGER.debug("Failed to fetch portfolio data: %s", err)
 
         try:
             # Trade fills with time filter
-            end_time = int(datetime.now().timestamp() * 1000)
-            start_time = int((datetime.now() - timedelta(days=trade_history_days)).timestamp() * 1000)
+            now = datetime.now(tz=timezone.utc)
+            end_time = int(now.timestamp() * 1000)
+            start_time = int((now - timedelta(days=trade_history_days)).timestamp() * 1000)
             trade_fills = self._info.user_fills_by_time(wallet_address, start_time, end_time) or []
         except Exception as err:
             _LOGGER.debug("Failed to fetch trade fills: %s", err)
@@ -205,7 +205,7 @@ class HyperliquidDataUpdateCoordinator(DataUpdateCoordinator[HyperliquidAccountD
 
     def _parse_data(self, all_data: dict[str, Any]) -> HyperliquidAccountData:
         """Parse user state response into structured data."""
-        from datetime import datetime, timedelta
+        from datetime import datetime, timedelta, timezone
 
         user_state = all_data["user_state"]
         vault_equities = all_data["vault_equities"]
@@ -222,7 +222,7 @@ class HyperliquidDataUpdateCoordinator(DataUpdateCoordinator[HyperliquidAccountD
         # Extract account-level values
         account_value = float(margin_summary.get("accountValue", 0))
         total_margin_used = float(margin_summary.get("totalMarginUsed", 0))
-        withdrawable = float(margin_summary.get("withdrawable", 0))
+        withdrawable = float(user_state.get("withdrawable", 0))
 
         # Parse positions
         positions = []
@@ -310,7 +310,7 @@ class HyperliquidDataUpdateCoordinator(DataUpdateCoordinator[HyperliquidAccountD
                 "vault_name": vault_name,
                 "equity": equity,
                 "pnl": pnl,
-                "roi": roi * 100 if abs(roi) < 1 else roi,  # Convert to percentage if needed
+                "roi": roi * 100,  # API returns decimal, convert to percentage
                 "deposit_value": deposit_value,
                 "apr": apr,
                 "leader_address": leader_address,
@@ -338,7 +338,7 @@ class HyperliquidDataUpdateCoordinator(DataUpdateCoordinator[HyperliquidAccountD
         pnl_all_time = 0.0
 
         if account_value_history:
-            now = datetime.now()
+            now = datetime.now(tz=timezone.utc)
             cutoff_24h = int((now - timedelta(hours=24)).timestamp() * 1000)
             cutoff_7d = int((now - timedelta(days=7)).timestamp() * 1000)
             cutoff_30d = int((now - timedelta(days=30)).timestamp() * 1000)
@@ -366,13 +366,13 @@ class HyperliquidDataUpdateCoordinator(DataUpdateCoordinator[HyperliquidAccountD
 
             # Calculate P&L
             current_value = account_value
-            if value_24h_ago:
+            if value_24h_ago is not None:
                 pnl_24h = current_value - value_24h_ago
-            if value_7d_ago:
+            if value_7d_ago is not None:
                 pnl_7d = current_value - value_7d_ago
-            if value_30d_ago:
+            if value_30d_ago is not None:
                 pnl_30d = current_value - value_30d_ago
-            if oldest_value:
+            if oldest_value is not None:
                 pnl_all_time = current_value - float(oldest_value.get("accountValue", current_value))
 
         # Trade fills and realized P&L
@@ -385,7 +385,7 @@ class HyperliquidDataUpdateCoordinator(DataUpdateCoordinator[HyperliquidAccountD
         recent_trades = []
 
         if trade_fills:
-            now = datetime.now()
+            now = datetime.now(tz=timezone.utc)
             cutoff_24h = int((now - timedelta(hours=24)).timestamp() * 1000)
             cutoff_7d = int((now - timedelta(days=7)).timestamp() * 1000)
             cutoff_30d = int((now - timedelta(days=30)).timestamp() * 1000)
@@ -428,7 +428,7 @@ class HyperliquidDataUpdateCoordinator(DataUpdateCoordinator[HyperliquidAccountD
         funding_by_coin = {}
 
         if funding_data:
-            now = datetime.now()
+            now = datetime.now(tz=timezone.utc)
             cutoff_24h = int((now - timedelta(hours=24)).timestamp() * 1000)
             cutoff_7d = int((now - timedelta(days=7)).timestamp() * 1000)
             cutoff_30d = int((now - timedelta(days=30)).timestamp() * 1000)

@@ -50,6 +50,54 @@
       },
       "total_vault_equity": {
         "name": "Total Vault Equity"
+      },
+      "pnl_24h": {
+        "name": "PnL 24h"
+      },
+      "pnl_7d": {
+        "name": "PnL 7d"
+      },
+      "pnl_30d": {
+        "name": "PnL 30d"
+      },
+      "pnl_all_time": {
+        "name": "PnL All Time"
+      },
+      "realized_pnl_24h": {
+        "name": "Realized PnL 24h"
+      },
+      "realized_pnl_7d": {
+        "name": "Realized PnL 7d"
+      },
+      "realized_pnl_30d": {
+        "name": "Realized PnL 30d"
+      },
+      "trades_24h": {
+        "name": "Trades 24h"
+      },
+      "fees_paid_24h": {
+        "name": "Fees Paid 24h"
+      },
+      "fees_paid_30d": {
+        "name": "Fees Paid 30d"
+      },
+      "funding_24h": {
+        "name": "Funding 24h"
+      },
+      "funding_7d": {
+        "name": "Funding 7d"
+      },
+      "funding_30d": {
+        "name": "Funding 30d"
+      },
+      "open_orders_count": {
+        "name": "Open Orders Count"
+      },
+      "referral_earnings": {
+        "name": "Referral Earnings"
+      },
+      "referral_volume": {
+        "name": "Referral Volume"
       }
     }
   }

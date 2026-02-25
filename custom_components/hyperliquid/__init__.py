@@ -37,8 +37,10 @@ async def async_unload_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     """Unload a config entry."""
     if unload_ok := await hass.config_entries.async_unload_platforms(entry, PLATFORMS):
         hass.data[DOMAIN].pop(entry.entry_id)
-        # Clean up position entity tracking
+        # Clean up dynamic entity tracking
         hass.data[DOMAIN].pop(f"{entry.entry_id}_position_entities", None)
+        hass.data[DOMAIN].pop(f"{entry.entry_id}_vault_entities", None)
+        hass.data[DOMAIN].pop(f"{entry.entry_id}_order_entities", None)
 
     return unload_ok
 
