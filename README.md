@@ -226,12 +226,6 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 
 This is an unofficial integration and is not affiliated with or endorsed by Hyperliquid. Use at your own risk. This integration is for monitoring purposes only and cannot execute trades.
 
-## Support
-
-- [Report Issues](https://github.com/beMoD/homeassistant-hyperliquid/issues)
-- [Hyperliquid Documentation](https://hyperliquid.gitbook.io/hyperliquid-docs)
-- [Home Assistant Community](https://community.home-assistant.io/)
-
 ## Support the Project
 
 If you find this integration useful, consider signing up on Hyperliquid using my referral link — it costs you nothing and helps support development:
@@ -239,5 +233,13 @@ If you find this integration useful, consider signing up on Hyperliquid using my
 **[Sign up with referral link](https://app.hyperliquid.xyz/join/BEMOD)**
 
 You'll receive a **4% fee discount** on your first $25M in trading volume.
+
+## Support
+
+- [Report Issues](https://github.com/beMoD/homeassistant-hyperliquid/issues)
+- [Hyperliquid Documentation](https://hyperliquid.gitbook.io/hyperliquid-docs)
+- [Home Assistant Community](https://community.home-assistant.io/)
+
+
 
 Already have an account? Enter code **BEMOD** at [app.hyperliquid.xyz/referrals](https://app.hyperliquid.xyz/referrals) to claim the discount.
