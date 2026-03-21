@@ -229,6 +229,7 @@ This is an unofficial integration and is not affiliated with or endorsed by Hype
 ## Support the Project
 
 If you find this integration useful, consider signing up on Hyperliquid using my referral link — it costs you nothing and helps support development:
+Already have an account? Enter code **BEMOD** at [app.hyperliquid.xyz/referrals](https://app.hyperliquid.xyz/referrals) to claim the discount.
 
 **[Sign up with referral link](https://app.hyperliquid.xyz/join/BEMOD)**
 
@@ -242,4 +243,3 @@ You'll receive a **4% fee discount** on your first $25M in trading volume.
 
 
 
-Already have an account? Enter code **BEMOD** at [app.hyperliquid.xyz/referrals](https://app.hyperliquid.xyz/referrals) to claim the discount.
