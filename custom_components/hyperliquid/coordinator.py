@@ -200,7 +200,6 @@ class HyperliquidDataUpdateCoordinator(DataUpdateCoordinator[HyperliquidAccountD
             return self._parse_data(all_data)
 
         except Exception as err:
-            _LOGGER.error("Error fetching Hyperliquid data: %s", err)
             raise UpdateFailed(f"Error communicating with Hyperliquid API: {err}") from err
 
     def _parse_data(self, all_data: dict[str, Any]) -> HyperliquidAccountData:
