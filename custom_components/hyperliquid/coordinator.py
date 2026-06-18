@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import asyncio
 from dataclasses import dataclass
 from datetime import timedelta
 import logging
@@ -15,6 +16,7 @@ from homeassistant.helpers.update_coordinator import (
 )
 
 from .const import (
+    API_TIMEOUT,
     CONF_TRADE_HISTORY_COUNT,
     CONF_TRADE_HISTORY_DAYS,
     CONF_UPDATE_INTERVAL,
@@ -23,6 +25,7 @@ from .const import (
     DEFAULT_TRADE_HISTORY_DAYS,
     DEFAULT_UPDATE_INTERVAL,
     DOMAIN,
+    UPDATE_TIMEOUT,
 )
 
 _LOGGER = logging.getLogger(__name__)
@@ -95,7 +98,11 @@ class HyperliquidDataUpdateCoordinator(DataUpdateCoordinator[HyperliquidAccountD
 
         try:
             if self._info is None:
-                self._info = Info(skip_ws=True)
+                # Pass a per-request timeout so a hung connection cannot block
+                # this executor thread (and the coordinator) forever. The SDK
+                # forwards it to requests for both the constructor's meta calls
+                # and every later post().
+                self._info = Info(skip_ws=True, timeout=API_TIMEOUT)
         except Exception:
             self._info = None
             raise
@@ -192,13 +199,22 @@ class HyperliquidDataUpdateCoordinator(DataUpdateCoordinator[HyperliquidAccountD
     async def _async_update_data(self) -> HyperliquidAccountData:
         """Fetch data from Hyperliquid API."""
         try:
-            # Fetch all data from API (in executor to avoid blocking)
-            all_data = await self.hass.async_add_executor_job(
-                self._fetch_all_data, self.wallet_address
-            )
+            # Fetch all data from API (in executor to avoid blocking).
+            # Wrap in an overall timeout as a safety net: even with per-request
+            # timeouts, a chain of slow-but-alive calls must not stall forever.
+            async with asyncio.timeout(UPDATE_TIMEOUT):
+                all_data = await self.hass.async_add_executor_job(
+                    self._fetch_all_data, self.wallet_address
+                )
 
             return self._parse_data(all_data)
 
+        except TimeoutError as err:
+            # Drop the client so the next cycle re-instantiates it cleanly.
+            self._info = None
+            raise UpdateFailed(
+                f"Timed out communicating with Hyperliquid API after {UPDATE_TIMEOUT}s"
+            ) from err
         except Exception as err:
             raise UpdateFailed(f"Error communicating with Hyperliquid API: {err}") from err
 

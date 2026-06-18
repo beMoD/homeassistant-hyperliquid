@@ -19,6 +19,13 @@ DEFAULT_TRADE_HISTORY_DAYS = 7
 MIN_TRADE_HISTORY_DAYS = 1
 MAX_TRADE_HISTORY_DAYS = 30
 
+# Per-request HTTP timeout (seconds) passed to the SDK so a hung connection
+# cannot freeze the executor thread (and with it the coordinator) indefinitely.
+API_TIMEOUT = 30
+# Overall budget for one full update cycle (all API calls combined), used as a
+# safety net via async_timeout in case individual requests are slow but alive.
+UPDATE_TIMEOUT = 120
+
 # Sensor types
 SENSOR_ACCOUNT_VALUE = "account_value"
 SENSOR_UNREALIZED_PNL = "unrealized_pnl"
