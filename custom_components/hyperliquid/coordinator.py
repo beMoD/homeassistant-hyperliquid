@@ -168,10 +168,16 @@ class HyperliquidDataUpdateCoordinator(DataUpdateCoordinator[HyperliquidAccountD
             _LOGGER.debug("Failed to fetch trade fills: %s", err)
 
         try:
-            # Funding payments
-            funding_data = self._info.user_fundings(wallet_address) or []
+            # Funding payments over the last 30 days (single POST; the parser
+            # buckets them into the 24h/7d/30d windows). user_funding_history
+            # requires an explicit startTime.
+            funding_start = int((now - timedelta(days=30)).timestamp() * 1000)
+            funding_data = (
+                self._info.user_funding_history(wallet_address, funding_start, end_time)
+                or []
+            )
         except Exception as err:
-            _LOGGER.debug("Failed to fetch funding data: %s", err)
+            _LOGGER.warning("Failed to fetch funding data: %s", err)
 
         try:
             # Open orders
@@ -449,10 +455,13 @@ class HyperliquidDataUpdateCoordinator(DataUpdateCoordinator[HyperliquidAccountD
             cutoff_30d = int((now - timedelta(days=30)).timestamp() * 1000)
 
             for funding in funding_data:
+                # userFunding records nest the payment fields under "delta";
+                # only "time" and "hash" sit at the top level.
                 timestamp = funding.get("time", 0)
-                coin = funding.get("coin", "")
-                usdc = float(funding.get("usdc", 0))
-                funding_rate = float(funding.get("fundingRate", 0))
+                delta = funding.get("delta", {})
+                coin = delta.get("coin", "")
+                usdc = float(delta.get("usdc", 0))
+                funding_rate = float(delta.get("fundingRate", 0))
 
                 # Aggregate by timeframe
                 if timestamp >= cutoff_24h:
