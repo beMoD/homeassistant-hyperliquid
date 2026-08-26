@@ -19,6 +19,11 @@ DEFAULT_TRADE_HISTORY_DAYS = 7
 MIN_TRADE_HISTORY_DAYS = 1
 MAX_TRADE_HISTORY_DAYS = 30
 
+# Fills are always fetched over this window so the 24h/7d/30d buckets are
+# complete regardless of CONF_TRADE_HISTORY_DAYS, which only limits the
+# "recent trades" attribute list.
+FILL_HISTORY_DAYS = 30
+
 # Per-request HTTP timeout (seconds) passed to the SDK so a hung connection
 # cannot freeze the executor thread (and with it the coordinator) indefinitely.
 API_TIMEOUT = 30

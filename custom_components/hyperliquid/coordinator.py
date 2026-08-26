@@ -25,6 +25,7 @@ from .const import (
     DEFAULT_TRADE_HISTORY_DAYS,
     DEFAULT_UPDATE_INTERVAL,
     DOMAIN,
+    FILL_HISTORY_DAYS,
     UPDATE_TIMEOUT,
 )
 
@@ -159,10 +160,13 @@ class HyperliquidDataUpdateCoordinator(DataUpdateCoordinator[HyperliquidAccountD
             _LOGGER.debug("Failed to fetch portfolio data: %s", err)
 
         try:
-            # Trade fills with time filter
+            # Trade fills. Always fetched over the full 30d window: the parser
+            # buckets them into 24h/7d/30d, so a shorter fetch would silently
+            # cap realized_pnl_30d / fees_paid_30d at the fetch window.
+            # trade_history_days only narrows the "recent trades" attribute.
             now = datetime.now(tz=timezone.utc)
             end_time = int(now.timestamp() * 1000)
-            start_time = int((now - timedelta(days=trade_history_days)).timestamp() * 1000)
+            start_time = int((now - timedelta(days=FILL_HISTORY_DAYS)).timestamp() * 1000)
             trade_fills = self._info.user_fills_by_time(wallet_address, start_time, end_time) or []
         except Exception as err:
             _LOGGER.debug("Failed to fetch trade fills: %s", err)
@@ -200,6 +204,7 @@ class HyperliquidDataUpdateCoordinator(DataUpdateCoordinator[HyperliquidAccountD
             "open_orders": open_orders,
             "referral_data": referral_data,
             "trade_history_count": trade_history_count,
+            "trade_history_days": trade_history_days,
         }
 
     async def _async_update_data(self) -> HyperliquidAccountData:
@@ -236,6 +241,7 @@ class HyperliquidDataUpdateCoordinator(DataUpdateCoordinator[HyperliquidAccountD
         open_orders = all_data.get("open_orders", [])
         referral_data = all_data.get("referral_data", {})
         trade_history_count = all_data.get("trade_history_count", DEFAULT_TRADE_HISTORY_COUNT)
+        trade_history_days = all_data.get("trade_history_days", DEFAULT_TRADE_HISTORY_DAYS)
 
         margin_summary = user_state.get("marginSummary", {})
         asset_positions = user_state.get("assetPositions", [])
@@ -345,56 +351,54 @@ class HyperliquidDataUpdateCoordinator(DataUpdateCoordinator[HyperliquidAccountD
             total_vault_equity += equity
 
         # Parse Phase 1 data
-        # Portfolio history and P&L
-        account_value_history = []
-        if portfolio_data and isinstance(portfolio_data, dict):
-            # Portfolio API returns data nested by timeframe
-            all_time_data = portfolio_data.get("allTime", {})
-            if isinstance(all_time_data, dict):
-                account_value_history = all_time_data.get("accountValueHistory", [])
+        # Portfolio history and P&L. The portfolio endpoint returns a LIST of
+        # [period, data] pairs (day/week/month/allTime/perp*), not a dict, and
+        # every history entry is a [timestamp, "value"] pair, not a dict.
+        portfolio_periods: dict[str, Any] = {}
+        if isinstance(portfolio_data, list):
+            portfolio_periods = {
+                pair[0]: pair[1]
+                for pair in portfolio_data
+                if isinstance(pair, (list, tuple)) and len(pair) == 2
+            }
+        elif isinstance(portfolio_data, dict):
+            portfolio_periods = portfolio_data
 
-        pnl_24h = 0.0
-        pnl_7d = 0.0
-        pnl_30d = 0.0
-        pnl_all_time = 0.0
+        def _series(period: str, key: str) -> list[tuple[int, float]]:
+            """Return one history series as (timestamp_ms, value) tuples."""
+            period_data = portfolio_periods.get(period) or {}
+            if not isinstance(period_data, dict):
+                return []
+            series = []
+            for entry in period_data.get(key) or []:
+                try:
+                    series.append((int(entry[0]), float(entry[1])))
+                except (TypeError, ValueError, IndexError):
+                    continue
+            return series
 
-        if account_value_history:
-            now = datetime.now(tz=timezone.utc)
-            cutoff_24h = int((now - timedelta(hours=24)).timestamp() * 1000)
-            cutoff_7d = int((now - timedelta(days=7)).timestamp() * 1000)
-            cutoff_30d = int((now - timedelta(days=30)).timestamp() * 1000)
+        def _window_pnl(period: str) -> float:
+            """P&L over a period, from the API's own cumulative pnlHistory.
 
-            # Find account values at each timeframe
-            value_24h_ago = None
-            value_7d_ago = None
-            value_30d_ago = None
-            oldest_value = None
+            Using pnlHistory rather than the account value keeps deposits and
+            withdrawals out of the number, and avoids comparing the portfolio
+            total (perps + spot + vaults) against the perp-only accountValue.
+            """
+            series = _series(period, "pnlHistory")
+            if len(series) < 2:
+                return 0.0
+            return series[-1][1] - series[0][1]
 
-            for entry in account_value_history:
-                timestamp = entry.get("time", 0)
-                value = float(entry.get("accountValue", 0))
+        pnl_24h = _window_pnl("day")
+        pnl_7d = _window_pnl("week")
+        pnl_30d = _window_pnl("month")
+        pnl_all_time = _window_pnl("allTime")
 
-                if timestamp >= cutoff_24h and value_24h_ago is None:
-                    value_24h_ago = value
-                if timestamp >= cutoff_7d and value_7d_ago is None:
-                    value_7d_ago = value
-                if timestamp >= cutoff_30d and value_30d_ago is None:
-                    value_30d_ago = value
-
-                # Track oldest value for all-time P&L
-                if oldest_value is None or timestamp < oldest_value.get("time", float('inf')):
-                    oldest_value = entry
-
-            # Calculate P&L
-            current_value = account_value
-            if value_24h_ago is not None:
-                pnl_24h = current_value - value_24h_ago
-            if value_7d_ago is not None:
-                pnl_7d = current_value - value_7d_ago
-            if value_30d_ago is not None:
-                pnl_30d = current_value - value_30d_ago
-            if oldest_value is not None:
-                pnl_all_time = current_value - float(oldest_value.get("accountValue", current_value))
+        # Normalized history for the charting attribute
+        account_value_history = [
+            {"time": timestamp, "accountValue": value}
+            for timestamp, value in _series("allTime", "accountValueHistory")
+        ]
 
         # Trade fills and realized P&L
         realized_pnl_24h = 0.0
@@ -429,8 +433,15 @@ class HyperliquidDataUpdateCoordinator(DataUpdateCoordinator[HyperliquidAccountD
                     realized_pnl_30d += closed_pnl
                     fees_paid_30d += fee
 
-            # Keep only the most recent N trades for attributes
-            sorted_fills = sorted(trade_fills, key=lambda x: x.get("time", 0), reverse=True)
+            # Keep only the most recent N trades from the configured window
+            cutoff_recent = int(
+                (now - timedelta(days=trade_history_days)).timestamp() * 1000
+            )
+            sorted_fills = sorted(
+                (f for f in trade_fills if f.get("time", 0) >= cutoff_recent),
+                key=lambda x: x.get("time", 0),
+                reverse=True,
+            )
             for fill in sorted_fills[:trade_history_count]:
                 recent_trades.append({
                     "coin": fill.get("coin", ""),

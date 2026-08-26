@@ -5,6 +5,21 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.2.14] - 2026-08-27
+
+### Fixed
+- **30d sensors were capped at the trade history window**: fills are now always
+  fetched over a full 30 days, so `realized_pnl_30d` and `fees_paid_30d` are no
+  longer limited by the `trade_history_days` option (default 7). That option now
+  only limits the "recent trades" attribute list, as intended.
+- **All `pnl_*` sensors always read 0**: the `portfolio` endpoint returns a list
+  of `[period, data]` pairs (not a dict) and its history entries are
+  `[timestamp, value]` pairs (not dicts), so the parser never found any data.
+  P&L is now taken from the API's own cumulative `pnlHistory` per period
+  (`day`/`week`/`month`/`allTime`), which excludes deposits and withdrawals and
+  avoids comparing the portfolio total (perps + spot + vaults) against the
+  perp-only account value.
+
 ## [0.2.3] - 2025-02-09
 
 ### Fixed
