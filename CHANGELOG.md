@@ -5,6 +5,27 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.3.1] - 2026-08-30
+
+### Fixed
+
+- **`trading_equity` counted position margin twice.** Under the unified account
+  the margin backing a position is not moved out of the spot wallet, only put
+  on hold — the balance's `total` still contains it while `available` drops.
+  Adding `marginSummary.accountValue` on top therefore counted that collateral
+  a second time. With a position open, the sensor read about 100 USD too high
+  on a 1000 USD position; with no position open it was already correct, which
+  is why 0.3.0 shipped with it.
+
+  The value is now the spot balance plus the open P&L, which is the one part
+  the spot balance does not contain. It is summed from the individual
+  positions, so it is independent of the margin mode — `marginSummary`
+  aggregates cross and isolated, but every position reports its own
+  unrealized P&L either way.
+
+  Only `trading_equity` was affected. `account_value` comes from the exchange's
+  own portfolio history and was correct throughout.
+
 ## [0.3.0] - 2026-08-30
 
 Hyperliquid moved to a unified account, which broke the sensors that read the

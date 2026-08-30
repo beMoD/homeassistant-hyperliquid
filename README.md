@@ -11,7 +11,7 @@ A Home Assistant custom integration for monitoring [Hyperliquid](https://hyperli
 ### Account Monitoring
 Mirrors the equity panel of the Hyperliquid web interface:
 - **Account Value** - Total equity: spot, perps, vaults and staking combined
-- **Trading Equity** - Spot balances plus the perpetuals account
+- **Trading Equity** - Spot balances plus the P&L of open positions
 - **Total Vault Equity** - Combined equity across all vault deposits
 - **Staking Balance / Staking Value** - Delegated HYPE and its USD equivalent
 - **Unrealized PnL** - Sum of all open position P&L
@@ -106,10 +106,11 @@ All sensors are grouped under a single device per wallet address.
 > **Unified account.** Hyperliquid no longer separates the spot and
 > perpetuals account, and this integration is built and verified against that
 > unified model — the collateral is read from the spot balances rather than
-> from the perpetuals margin summary. `withdrawable` and `trading_equity`
-> depend on that assumption; both fall back to the perpetuals fields if the
-> spot data is missing, but that path is untested. Every other sensor is
-> independent of the account type.
+> from the perpetuals margin summary. `trading_equity` and `withdrawable`
+> depend on that assumption; `withdrawable` falls back to the perpetuals field
+> when the spot data is missing, but that path is untested. Every other sensor
+> is independent of the account type, and both margin modes (cross and
+> isolated) are handled the same way.
 
 ### Equity
 
@@ -118,7 +119,7 @@ Entity IDs are shown without their `sensor.hyperliquid_<wallet>_` prefix.
 | Sensor | Description | Unit |
 |--------|-------------|------|
 | `account_value` | Total equity: spot, perps, vaults and staking | USD |
-| `trading_equity` | Spot balances plus the perpetuals account | USD |
+| `trading_equity` | Spot balances plus the P&L of open positions | USD |
 | `total_vault_equity` | Combined equity across all vault deposits | USD |
 | `staking_balance` | Delegated HYPE | HYPE |
 | `staking_value` | USD equivalent of the delegated HYPE | USD |

@@ -378,7 +378,6 @@ class HyperliquidDataUpdateCoordinator(DataUpdateCoordinator[HyperliquidAccountD
         # Extract account-level values. marginSummary describes the perp side
         # only; under the unified account the collateral lives in the spot
         # balances, so account_value is assembled further down instead.
-        perp_account_value = float(margin_summary.get("accountValue", 0))
         total_margin_used = float(margin_summary.get("totalMarginUsed", 0))
         perp_withdrawable = float(user_state.get("withdrawable", 0))
 
@@ -643,9 +642,17 @@ class HyperliquidDataUpdateCoordinator(DataUpdateCoordinator[HyperliquidAccountD
                 continue
             spot_value += amount * price
 
-        # "Trading Equity" in the panel: everything available for trading,
-        # which is the spot wallet plus whatever sits in the perp account.
-        trading_equity = spot_value + perp_account_value
+        # "Trading Equity" in the panel. Under the unified account the margin
+        # backing a position is not moved out of the spot wallet, only put on
+        # hold: the balance's "total" still contains it while "available"
+        # drops. Adding marginSummary.accountValue on top would therefore count
+        # that collateral twice. What the spot balance does NOT contain is the
+        # open P&L, so that is the one term to add.
+        #
+        # Summing assetPositions keeps this independent of the margin mode —
+        # marginSummary aggregates cross and isolated, but every position
+        # carries its own unrealizedPnl either way.
+        trading_equity = spot_value + total_unrealized_pnl
 
         # Withdrawable is USDC, and under the unified account it is reported
         # per token in the spot state rather than by marginSummary. Fall back
