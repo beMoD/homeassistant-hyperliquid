@@ -9,11 +9,25 @@ A Home Assistant custom integration for monitoring [Hyperliquid](https://hyperli
 ## Features
 
 ### Account Monitoring
-- **Account Value** - Total portfolio value
+Mirrors the equity panel of the Hyperliquid web interface:
+- **Account Value** - Total equity: spot, perps, vaults and staking combined
+- **Trading Equity** - Spot balances plus the perpetuals account
+- **Total Vault Equity** - Combined equity across all vault deposits
+- **Staking Balance / Staking Value** - Delegated HYPE and its USD equivalent
 - **Unrealized PnL** - Sum of all open position P&L
 - **Margin Used** - Currently used margin across all positions
 - **Withdrawable** - Available balance for withdrawal
-- **Total Vault Equity** - Combined equity across all vault deposits
+
+### Performance & Statistics
+- **P&L** over 24h, 7d, 30d and all time, split into total, perpetuals only
+  and non-perp (spot + vaults)
+- **Freely chosen perp windows** at 10, 14, 20, 21 and 28 days
+- **Realized P&L** and **fees paid** from the actual fills
+- **Funding payments** received or paid, over 24h, 7d and 30d
+- **Trading volume**, total and perpetuals only
+- **Max drawdown** as the largest peak-to-trough drop, per period
+- **Trade count** and **open order count**
+- **Referral earnings and volume**
 
 ### Position Tracking (Dynamic)
 Each open perpetual position gets its own sensor showing unrealized PnL with attributes:
@@ -89,15 +103,57 @@ To change options:
 
 All sensors are grouped under a single device per wallet address.
 
-### Static Sensors
+> **Unified account.** Hyperliquid no longer separates the spot and
+> perpetuals account, and this integration is built and verified against that
+> unified model — the collateral is read from the spot balances rather than
+> from the perpetuals margin summary. `withdrawable` and `trading_equity`
+> depend on that assumption; both fall back to the perpetuals fields if the
+> spot data is missing, but that path is untested. Every other sensor is
+> independent of the account type.
+
+### Equity
+
+Entity IDs are shown without their `sensor.hyperliquid_<wallet>_` prefix.
 
 | Sensor | Description | Unit |
 |--------|-------------|------|
-| `sensor.hyperliquid_*_account_value` | Total portfolio value | USD |
-| `sensor.hyperliquid_*_unrealized_pnl` | Sum of all position P&L | USD |
-| `sensor.hyperliquid_*_margin_used` | Used margin | USD |
-| `sensor.hyperliquid_*_withdrawable` | Available balance | USD |
-| `sensor.hyperliquid_*_total_vault_equity` | Total vault equity | USD |
+| `account_value` | Total equity: spot, perps, vaults and staking | USD |
+| `trading_equity` | Spot balances plus the perpetuals account | USD |
+| `total_vault_equity` | Combined equity across all vault deposits | USD |
+| `staking_balance` | Delegated HYPE | HYPE |
+| `staking_value` | USD equivalent of the delegated HYPE | USD |
+| `unrealized_pnl` | Sum of all open position P&L | USD |
+| `margin_used` | Currently used margin | USD |
+| `withdrawable` | Available for withdrawal | USD |
+
+### Profit & Loss
+
+Taken from the exchange's own portfolio history, so deposits and withdrawals
+do not distort it. Each window is cut to its exact boundary; a sensor reports
+`unknown` rather than a number when the history does not reach back far enough.
+
+| Sensor | Description | Unit |
+|--------|-------------|------|
+| `pnl_24h`, `pnl_7d`, `pnl_30d`, `pnl_all_time` | Total P&L | USD |
+| `perp_pnl_24h`, `perp_pnl_7d`, `perp_pnl_30d`, `perp_pnl_all_time` | Perpetuals only | USD |
+| `perp_pnl_10d`, `perp_pnl_14d`, `perp_pnl_20d`, `perp_pnl_21d`, `perp_pnl_28d` | Perpetuals, extra windows | USD |
+| `non_perp_pnl_24h`, `non_perp_pnl_7d`, `non_perp_pnl_30d`, `non_perp_pnl_all_time` | Spot and vaults | USD |
+
+For any window, `pnl` equals `perp_pnl` plus `non_perp_pnl`.
+
+### Trading Statistics
+
+| Sensor | Description | Unit |
+|--------|-------------|------|
+| `realized_pnl_24h`, `realized_pnl_7d`, `realized_pnl_30d` | Realized P&L from fills | USD |
+| `fees_paid_24h`, `fees_paid_30d` | Trading fees paid | USD |
+| `funding_24h`, `funding_7d`, `funding_30d` | Funding received or paid | USD |
+| `volume_24h`, `volume_7d`, `volume_30d`, `volume_all_time` | Total traded volume | USD |
+| `perp_volume_24h`, `perp_volume_7d`, `perp_volume_30d`, `perp_volume_all_time` | Perpetuals volume | USD |
+| `max_drawdown_24h`, `max_drawdown_7d`, `max_drawdown_30d`, `max_drawdown_all_time` | Largest peak-to-trough drop | % |
+| `trades_24h` | Number of fills | - |
+| `open_orders_count` | Currently open orders | - |
+| `referral_earnings`, `referral_volume` | Referral program | USD |
 
 ### Dynamic Sensors (Per Position)
 
@@ -117,23 +173,46 @@ Attributes: `vault_name`, `vault_address`, `pnl`, `roi`, `deposit_value`, `apr`,
 
 ## Example Dashboard Card
 
+This rebuilds the equity panel of the Hyperliquid web interface:
+
 ```yaml
 type: entities
 title: Hyperliquid Account
 entities:
   - entity: sensor.hyperliquid_0x1234_account_value
-    name: Portfolio Value
-  - entity: sensor.hyperliquid_0x1234_unrealized_pnl
-    name: Unrealized PnL
-  - entity: sensor.hyperliquid_0x1234_margin_used
-    name: Margin Used
-  - entity: sensor.hyperliquid_0x1234_withdrawable
-    name: Available
+    name: Total Equity
+  - entity: sensor.hyperliquid_0x1234_trading_equity
+    name: Trading Equity
+  - entity: sensor.hyperliquid_0x1234_total_vault_equity
+    name: Vault Equity
+  - entity: sensor.hyperliquid_0x1234_staking_balance
+    name: Staking
+  - type: divider
+  - entity: sensor.hyperliquid_0x1234_pnl_all_time
+    name: PnL
+  - entity: sensor.hyperliquid_0x1234_volume_all_time
+    name: Volume
+  - entity: sensor.hyperliquid_0x1234_max_drawdown_all_time
+    name: Max Drawdown
   - type: divider
   - entity: sensor.hyperliquid_0x1234_position_btc
     name: BTC Position
   - entity: sensor.hyperliquid_0x1234_position_eth
     name: ETH Position
+```
+
+Perpetuals against spot and vaults over the same window:
+
+```yaml
+type: entities
+title: Where the PnL comes from
+entities:
+  - entity: sensor.hyperliquid_0x1234_pnl_30d
+    name: Total 30d
+  - entity: sensor.hyperliquid_0x1234_perp_pnl_30d
+    name: Perpetuals 30d
+  - entity: sensor.hyperliquid_0x1234_non_perp_pnl_30d
+    name: Spot & Vaults 30d
 ```
 
 ## Example Automation: Liquidation Alert
@@ -198,12 +277,26 @@ action:
 - Verify you have active positions/vault deposits (dynamic sensors only appear when data exists)
 - Check Home Assistant logs for errors
 
+### A P&L sensor reports "unknown"
+The exchange's portfolio history does not reach back far enough for that
+window. This is deliberate: the monthly series covers about 30.8 days, and the
+only series reaching further back is sampled weekly, so a longer window could
+only be guessed at. The sensor reports `unknown` instead of a plausible-looking
+estimate.
+
+### Account Value reads 0 after upgrading from 0.2.x
+Fixed in 0.3.0. Hyperliquid moved to a unified account, where the perpetuals
+margin summary the integration used to read reports `0` unless a perp position
+is open. `account_value` and `withdrawable` now read the spot balances. Note
+that their recorded history from before the upgrade is not comparable.
+
 ## Technical Details
 
 - **API**: Hyperliquid REST API (https://api.hyperliquid.xyz)
-- **SDK**: Official `hyperliquid-python-sdk` (v0.21.0)
+- **SDK**: Official `hyperliquid-python-sdk` (v0.23.0)
 - **Update Method**: Polling via `DataUpdateCoordinator`
 - **Authentication**: Read-only (wallet address only, no private key)
+- **Account model**: Unified account (spot balances act as collateral)
 - **Minimum HA Version**: 2024.1.0
 
 ## Data Privacy

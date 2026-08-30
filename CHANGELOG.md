@@ -5,6 +5,65 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.3.0] - 2026-08-30
+
+Hyperliquid moved to a unified account, which broke the sensors that read the
+perpetuals margin summary. Fixing that changes what three existing sensors
+mean, hence the minor version bump.
+
+### Breaking
+
+- **`account_value` now reports total equity, not the perp account.** It read
+  `marginSummary.accountValue`, which under the unified account describes the
+  perpetuals side only and is `0` whenever no perp position is open. It now
+  reports what Hyperliquid's own panel calls "Total Equity" — spot, perps,
+  vaults and staking combined. On a spot-only account this jumps from `0` to
+  the real balance, so its recorded history from before the update is not
+  comparable.
+- **`withdrawable` now reads the spot balances.** Same cause; the value comes
+  from `spotClearinghouseState.tokenToAvailableAfterMaintenance` (USDC), and
+  falls back to the perpetuals field so non-unified accounts keep working.
+- **`pnl_24h`, `pnl_7d` and `pnl_30d` are cut to the exact window.** They used
+  a whole portfolio period, but a period is not the window it is named after:
+  the `month` period spans about 30.8 days, so `pnl_30d` covered nearly an
+  extra day and could not be reconciled against the new perp/non-perp split.
+  `pnl_30d` therefore shifts by roughly 15%. `pnl_all_time` is unchanged.
+- These three sensors can now report `unknown` instead of a number when the
+  portfolio history does not reach back far enough for their window.
+
+### Added
+
+- **Perp-only P&L**: `perp_pnl_24h`, `perp_pnl_7d`, `perp_pnl_30d` and
+  `perp_pnl_all_time`, from the portfolio endpoint's `perp*` periods.
+- **Freely chosen P&L windows**: `perp_pnl_10d`, `perp_pnl_14d`,
+  `perp_pnl_20d`, `perp_pnl_21d` and `perp_pnl_28d`, cut from `perpMonth`.
+  Longer windows are deliberately absent — see below.
+- **Spot and vault share of the P&L**: `non_perp_pnl_24h`, `non_perp_pnl_7d`,
+  `non_perp_pnl_30d` and `non_perp_pnl_all_time`, as total minus perp over the
+  same window. Named "non-perp" rather than "spot" because vaults are included.
+- **Equity breakdown**, mirroring Hyperliquid's panel: `trading_equity`,
+  `staking_balance` (in HYPE — only HYPE can be staked) and `staking_value`
+  (its USD equivalent).
+- **Max drawdown**: `max_drawdown_24h`, `max_drawdown_7d`, `max_drawdown_30d`
+  and `max_drawdown_all_time`, as the largest peak-to-trough drop in percent.
+- **Trading volume**: `volume_24h/7d/30d/all_time` for the total and
+  `perp_volume_24h/7d/30d/all_time` for the perpetuals share.
+
+### Notes
+
+- P&L windows are refused rather than approximated when the history does not
+  cover them. The `month` series spans ~30.8 days, so a 40-day window would
+  otherwise have silently returned the 30.8-day figure, and the only series
+  reaching further back is sampled weekly. The sensor reports `unknown`
+  instead.
+- Valuing the spot balances needs prices. The listing table (`spotMeta`, about
+  130 KB) is fetched once and cached, and only refetched when a token appears
+  that it does not know; prices come from `allMids` (about 16 KB) each cycle.
+- This release is built and verified against the unified account. `withdrawable`
+  and `trading_equity` assume spot and perps share one pool; both fall back to
+  the perpetuals fields when the spot data is missing, but that path is
+  untested. Every other sensor is independent of the account type.
+
 ## [0.2.14] - 2026-08-27
 
 ### Fixed

@@ -51,6 +51,27 @@
       "total_vault_equity": {
         "name": "Total Vault Equity"
       },
+      "trading_equity": {
+        "name": "Trading Equity"
+      },
+      "staking_balance": {
+        "name": "Staking Balance"
+      },
+      "staking_value": {
+        "name": "Staking Value"
+      },
+      "max_drawdown_24h": {
+        "name": "Max Drawdown 24h"
+      },
+      "max_drawdown_7d": {
+        "name": "Max Drawdown 7d"
+      },
+      "max_drawdown_30d": {
+        "name": "Max Drawdown 30d"
+      },
+      "max_drawdown_all_time": {
+        "name": "Max Drawdown All Time"
+      },
       "pnl_24h": {
         "name": "PnL 24h"
       },
@@ -62,6 +83,69 @@
       },
       "pnl_all_time": {
         "name": "PnL All Time"
+      },
+      "perp_pnl_24h": {
+        "name": "Perp PnL 24h"
+      },
+      "perp_pnl_7d": {
+        "name": "Perp PnL 7d"
+      },
+      "perp_pnl_10d": {
+        "name": "Perp PnL 10d"
+      },
+      "perp_pnl_14d": {
+        "name": "Perp PnL 14d"
+      },
+      "perp_pnl_20d": {
+        "name": "Perp PnL 20d"
+      },
+      "perp_pnl_21d": {
+        "name": "Perp PnL 21d"
+      },
+      "perp_pnl_28d": {
+        "name": "Perp PnL 28d"
+      },
+      "perp_pnl_30d": {
+        "name": "Perp PnL 30d"
+      },
+      "perp_pnl_all_time": {
+        "name": "Perp PnL All Time"
+      },
+      "non_perp_pnl_24h": {
+        "name": "Non-Perp PnL 24h"
+      },
+      "non_perp_pnl_7d": {
+        "name": "Non-Perp PnL 7d"
+      },
+      "non_perp_pnl_30d": {
+        "name": "Non-Perp PnL 30d"
+      },
+      "non_perp_pnl_all_time": {
+        "name": "Non-Perp PnL All Time"
+      },
+      "volume_24h": {
+        "name": "Volume 24h"
+      },
+      "volume_7d": {
+        "name": "Volume 7d"
+      },
+      "volume_30d": {
+        "name": "Volume 30d"
+      },
+      "volume_all_time": {
+        "name": "Volume All Time"
+      },
+      "perp_volume_24h": {
+        "name": "Perp Volume 24h"
+      },
+      "perp_volume_7d": {
+        "name": "Perp Volume 7d"
+      },
+      "perp_volume_30d": {
+        "name": "Perp Volume 30d"
+      },
+      "perp_volume_all_time": {
+        "name": "Perp Volume All Time"
       },
       "realized_pnl_24h": {
         "name": "Realized PnL 24h"

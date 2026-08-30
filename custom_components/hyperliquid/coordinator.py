@@ -26,17 +26,36 @@ from .const import (
     DEFAULT_UPDATE_INTERVAL,
     DOMAIN,
     FILL_HISTORY_DAYS,
+    STAKING_TOKEN,
     UPDATE_TIMEOUT,
 )
 
 _LOGGER = logging.getLogger(__name__)
 
 
+def _as_float(value: Any, default: float = 0.0) -> float:
+    """Coerce an API value to float. The API sends numbers as strings."""
+    try:
+        return float(value)
+    except (TypeError, ValueError):
+        return default
+
+
 @dataclass
 class HyperliquidAccountData:
     """Class to hold account data."""
 
+    # Hyperliquid's "Total Equity": spot + perp + vaults + staking. NOT
+    # marginSummary.accountValue, which covers the perp side only and reads 0
+    # whenever no perp position is open.
     account_value: float
+    trading_equity: float
+    staking_balance: float
+    staking_value: float
+    max_drawdown_24h: float
+    max_drawdown_7d: float
+    max_drawdown_30d: float
+    max_drawdown_all_time: float
     unrealized_pnl: float
     margin_used: float
     withdrawable: float
@@ -44,10 +63,37 @@ class HyperliquidAccountData:
     vaults: list[dict[str, Any]]
     total_vault_equity: float
     # Phase 1 additions
-    pnl_24h: float
-    pnl_7d: float
-    pnl_30d: float
+    # Cut to the exact window; None when the history does not reach back far
+    # enough, same as the perp sensors below.
+    pnl_24h: float | None
+    pnl_7d: float | None
+    pnl_30d: float | None
     pnl_all_time: float
+    # Perp-only P&L. None means the portfolio history does not reach back far
+    # enough for that window — the sensor then reports "unknown" rather than a
+    # number that silently covers a shorter span.
+    perp_pnl_24h: float | None
+    perp_pnl_7d: float | None
+    perp_pnl_10d: float | None
+    perp_pnl_14d: float | None
+    perp_pnl_20d: float | None
+    perp_pnl_21d: float | None
+    perp_pnl_28d: float | None
+    perp_pnl_30d: float | None
+    perp_pnl_all_time: float
+    # Spot + vaults, derived as total minus perp over the same window.
+    non_perp_pnl_24h: float | None
+    non_perp_pnl_7d: float | None
+    non_perp_pnl_30d: float | None
+    non_perp_pnl_all_time: float
+    volume_24h: float
+    volume_7d: float
+    volume_30d: float
+    volume_all_time: float
+    perp_volume_24h: float
+    perp_volume_7d: float
+    perp_volume_30d: float
+    perp_volume_all_time: float
     account_value_history: list[dict[str, Any]]
     realized_pnl_24h: float
     realized_pnl_7d: float
@@ -80,6 +126,13 @@ class HyperliquidDataUpdateCoordinator(DataUpdateCoordinator[HyperliquidAccountD
         """Initialize the coordinator."""
         self.wallet_address = config_entry.data[CONF_WALLET_ADDRESS]
         self._info = None  # Lazy initialization to avoid blocking
+        # token index -> USDC pair name ("@107"), built once from spotMeta.
+        # The listing table is static and the response is ~130 KB, so it must
+        # not be refetched on every poll; prices come from the much smaller
+        # allMids instead.
+        self._spot_pairs: dict[int, str] | None = None
+        self._known_tokens: set[int] = set()
+        self._staking_token: int | None = None
 
         update_interval = config_entry.options.get(
             CONF_UPDATE_INTERVAL, DEFAULT_UPDATE_INTERVAL
@@ -113,6 +166,32 @@ class HyperliquidDataUpdateCoordinator(DataUpdateCoordinator[HyperliquidAccountD
         except Exception:
             self._info = None
             raise
+
+    def _fetch_spot_pairs(self) -> dict[int, str]:
+        """Map each spot token index to the name of its USDC pair.
+
+        allMids keys spot markets by pair name ("@107"), while balances key by
+        token index, so the two need this table to be joined. Tokens without a
+        USDC pair are left out — they have no directly quoted USD price. The
+        HYPE index is picked up here too, for the staking balance.
+        """
+        spot_meta = self._info.post("/info", {"type": "spotMeta"}) or {}
+
+        known: set[int] = set()
+        for position, token in enumerate(spot_meta.get("tokens") or []):
+            index = token.get("index", position)
+            known.add(index)
+            if token.get("name") == STAKING_TOKEN:
+                self._staking_token = index
+        self._known_tokens = known
+
+        pairs: dict[int, str] = {}
+        for pair in spot_meta.get("universe") or []:
+            tokens = pair.get("tokens") or []
+            name = pair.get("name")
+            if len(tokens) == 2 and tokens[1] == 0 and name:
+                pairs[tokens[0]] = name
+        return pairs
 
     def _fetch_all_data_inner(self, wallet_address: str) -> dict[str, Any]:
         """Inner fetch — called after Info is initialized."""
@@ -195,7 +274,52 @@ class HyperliquidDataUpdateCoordinator(DataUpdateCoordinator[HyperliquidAccountD
         except Exception as err:
             _LOGGER.debug("Failed to fetch referral data: %s", err)
 
+        # Unified account: spot balances carry the trading collateral, so the
+        # perp-only marginSummary no longer describes the account on its own.
+        spot_state = {}
+        staking = {}
+        mids = {}
+
+        try:
+            spot_state = self._info.post(
+                "/info", {"type": "spotClearinghouseState", "user": wallet_address}
+            ) or {}
+        except Exception as err:
+            _LOGGER.debug("Failed to fetch spot balances: %s", err)
+
+        try:
+            staking = self._info.post(
+                "/info", {"type": "delegatorSummary", "user": wallet_address}
+            ) or {}
+        except Exception as err:
+            _LOGGER.debug("Failed to fetch staking summary: %s", err)
+
+        try:
+            mids = self._info.post("/info", {"type": "allMids"}) or {}
+        except Exception as err:
+            _LOGGER.debug("Failed to fetch mid prices: %s", err)
+
+        held_tokens = {
+            balance.get("token")
+            for balance in spot_state.get("balances") or []
+            if _as_float(balance.get("total")) != 0
+        }
+        # Refetch only when a token shows up that the cached listing table has
+        # never seen. Comparing against _known_tokens rather than the pair map
+        # matters: USDC and any token without a USDC pair are absent from the
+        # pairs, and comparing against those would refetch on every poll.
+        if self._spot_pairs is None or held_tokens - self._known_tokens:
+            try:
+                self._spot_pairs = self._fetch_spot_pairs()
+            except Exception as err:
+                _LOGGER.debug("Failed to fetch spot metadata: %s", err)
+
         return {
+            "spot_state": spot_state,
+            "staking": staking,
+            "mids": mids,
+            "spot_pairs": self._spot_pairs or {},
+            "staking_token": self._staking_token,
             "user_state": user_state,
             "vault_equities": vault_equities,
             "portfolio_data": portfolio_data,
@@ -240,16 +364,23 @@ class HyperliquidDataUpdateCoordinator(DataUpdateCoordinator[HyperliquidAccountD
         funding_data = all_data.get("funding_data", [])
         open_orders = all_data.get("open_orders", [])
         referral_data = all_data.get("referral_data", {})
+        spot_state = all_data.get("spot_state", {})
+        staking = all_data.get("staking", {})
+        mids = all_data.get("mids", {})
+        spot_pairs = all_data.get("spot_pairs", {})
+        staking_token = all_data.get("staking_token")
         trade_history_count = all_data.get("trade_history_count", DEFAULT_TRADE_HISTORY_COUNT)
         trade_history_days = all_data.get("trade_history_days", DEFAULT_TRADE_HISTORY_DAYS)
 
         margin_summary = user_state.get("marginSummary", {})
         asset_positions = user_state.get("assetPositions", [])
 
-        # Extract account-level values
-        account_value = float(margin_summary.get("accountValue", 0))
+        # Extract account-level values. marginSummary describes the perp side
+        # only; under the unified account the collateral lives in the spot
+        # balances, so account_value is assembled further down instead.
+        perp_account_value = float(margin_summary.get("accountValue", 0))
         total_margin_used = float(margin_summary.get("totalMarginUsed", 0))
-        withdrawable = float(user_state.get("withdrawable", 0))
+        perp_withdrawable = float(user_state.get("withdrawable", 0))
 
         # Parse positions
         positions = []
@@ -389,10 +520,156 @@ class HyperliquidDataUpdateCoordinator(DataUpdateCoordinator[HyperliquidAccountD
                 return 0.0
             return series[-1][1] - series[0][1]
 
-        pnl_24h = _window_pnl("day")
-        pnl_7d = _window_pnl("week")
-        pnl_30d = _window_pnl("month")
+        def _window_delta(period: str, days: float) -> float | None:
+            """P&L over exactly `days`, cut out of a period's pnlHistory.
+
+            Returns None when the series does not reach that far back. This
+            matters: the month series only spans ~30.8 days, so asking it for
+            40 days would otherwise return its full span — a plausible-looking
+            number for a window it never covered. The anchor point must sit
+            within roughly one sampling interval of the target timestamp.
+            """
+            series = _series(period, "pnlHistory")
+            if len(series) < 2:
+                return None
+
+            target = series[-1][0] - int(days * 86_400_000)
+            gaps = sorted(
+                series[i + 1][0] - series[i][0] for i in range(len(series) - 1)
+            )
+            tolerance = max(int(gaps[len(gaps) // 2] * 1.5), 6 * 3_600_000)
+
+            anchor = min(series, key=lambda entry: abs(entry[0] - target))
+            if abs(anchor[0] - target) > tolerance:
+                return None
+            return series[-1][1] - anchor[1]
+
+        def _volume(period: str) -> float:
+            """Traded volume reported for a period."""
+            period_data = portfolio_periods.get(period) or {}
+            if not isinstance(period_data, dict):
+                return 0.0
+            try:
+                return float(period_data.get("vlm", 0))
+            except (TypeError, ValueError):
+                return 0.0
+
+        # Cut to the exact window, like the perp sensors below. The API period
+        # is not the window it is named after — "month" spans ~30.8 days — so
+        # taking it end-to-end overstated pnl_30d by nearly a day and left it
+        # inconsistent with perp_pnl_30d + non_perp_pnl_30d.
+        pnl_24h = _window_delta("day", 1)
+        pnl_7d = _window_delta("week", 7)
+        pnl_30d = _window_delta("month", 30)
         pnl_all_time = _window_pnl("allTime")
+
+        # Perp-only windows. 24h and 7d come from the finer day/week series;
+        # everything longer from perpMonth, whose ~10h raster puts the anchor
+        # within a few hours of every window boundary.
+        perp_pnl_24h = _window_delta("perpDay", 1)
+        perp_pnl_7d = _window_delta("perpWeek", 7)
+        perp_pnl_10d = _window_delta("perpMonth", 10)
+        perp_pnl_14d = _window_delta("perpMonth", 14)
+        perp_pnl_20d = _window_delta("perpMonth", 20)
+        perp_pnl_21d = _window_delta("perpMonth", 21)
+        perp_pnl_28d = _window_delta("perpMonth", 28)
+        perp_pnl_30d = _window_delta("perpMonth", 30)
+        perp_pnl_all_time = _window_pnl("perpAllTime")
+
+        def _non_perp(total_period: str, perp_period: str, days: float) -> float | None:
+            """Spot + vault share of the P&L, over one matched window."""
+            total = _window_delta(total_period, days)
+            perp = _window_delta(perp_period, days)
+            if total is None or perp is None:
+                return None
+            return total - perp
+
+        non_perp_pnl_24h = _non_perp("day", "perpDay", 1)
+        non_perp_pnl_7d = _non_perp("week", "perpWeek", 7)
+        non_perp_pnl_30d = _non_perp("month", "perpMonth", 30)
+        non_perp_pnl_all_time = pnl_all_time - perp_pnl_all_time
+
+        def _max_drawdown(period: str) -> float:
+            """Largest peak-to-trough drop of the account value, in percent."""
+            series = _series(period, "accountValueHistory")
+            peak = None
+            worst = 0.0
+            for _, value in series:
+                if peak is None or value > peak:
+                    peak = value
+                if peak and peak > 0:
+                    worst = max(worst, (peak - value) / peak)
+            return worst * 100
+
+        max_drawdown_24h = _max_drawdown("day")
+        max_drawdown_7d = _max_drawdown("week")
+        max_drawdown_30d = _max_drawdown("month")
+        max_drawdown_all_time = _max_drawdown("allTime")
+
+        # Total volume matches the panel's "Volume" row in its
+        # "Perps + Spot + Vaults" setting; the perp_* ones match its perp-only
+        # setting.
+        volume_24h = _volume("day")
+        volume_7d = _volume("week")
+        volume_30d = _volume("month")
+        volume_all_time = _volume("allTime")
+
+        perp_volume_24h = _volume("perpDay")
+        perp_volume_7d = _volume("perpWeek")
+        perp_volume_30d = _volume("perpMonth")
+        perp_volume_all_time = _volume("perpAllTime")
+
+        # Unified account equity, mirroring Hyperliquid's own panel.
+        def _spot_price(token: int) -> float | None:
+            """USD mid price of a spot token, via its USDC pair."""
+            if token == 0:  # USDC itself
+                return 1.0
+            pair = spot_pairs.get(token)
+            if pair is None:
+                return None
+            price = mids.get(pair)
+            return _as_float(price, 0.0) if price is not None else None
+
+        spot_value = 0.0
+        for balance in spot_state.get("balances") or []:
+            amount = _as_float(balance.get("total"))
+            if amount == 0:
+                continue
+            price = _spot_price(balance.get("token"))
+            if price is None:
+                # Token without a USDC pair — no quoted price, so counting it
+                # as zero is wrong, but inventing one would be worse.
+                _LOGGER.debug("No USD price for spot token %s", balance.get("coin"))
+                continue
+            spot_value += amount * price
+
+        # "Trading Equity" in the panel: everything available for trading,
+        # which is the spot wallet plus whatever sits in the perp account.
+        trading_equity = spot_value + perp_account_value
+
+        # Withdrawable is USDC, and under the unified account it is reported
+        # per token in the spot state rather than by marginSummary. Fall back
+        # to the perp field so accounts that are not unified still work.
+        withdrawable = perp_withdrawable
+        for entry in spot_state.get("tokenToAvailableAfterMaintenance") or []:
+            if isinstance(entry, (list, tuple)) and len(entry) == 2 and entry[0] == 0:
+                withdrawable = _as_float(entry[1], perp_withdrawable)
+                break
+
+        staking_balance = _as_float(staking.get("delegated"))
+        staking_price = (
+            _spot_price(staking_token) if staking_token is not None else None
+        )
+        staking_value = staking_balance * staking_price if staking_price else 0.0
+
+        # "Total Equity": the portfolio endpoint already reports it and is the
+        # only source that also covers staking, so prefer it and fall back to
+        # summing the parts only if the history is missing.
+        equity_series = _series("allTime", "accountValueHistory")
+        if equity_series:
+            account_value = equity_series[-1][1]
+        else:
+            account_value = trading_equity + total_vault_equity + staking_value
 
         # Normalized history for the charting attribute
         account_value_history = [
@@ -539,6 +816,13 @@ class HyperliquidDataUpdateCoordinator(DataUpdateCoordinator[HyperliquidAccountD
 
         return HyperliquidAccountData(
             account_value=account_value,
+            trading_equity=trading_equity,
+            staking_balance=staking_balance,
+            staking_value=staking_value,
+            max_drawdown_24h=max_drawdown_24h,
+            max_drawdown_7d=max_drawdown_7d,
+            max_drawdown_30d=max_drawdown_30d,
+            max_drawdown_all_time=max_drawdown_all_time,
             unrealized_pnl=total_unrealized_pnl,
             margin_used=total_margin_used,
             withdrawable=withdrawable,
@@ -550,6 +834,27 @@ class HyperliquidDataUpdateCoordinator(DataUpdateCoordinator[HyperliquidAccountD
             pnl_7d=pnl_7d,
             pnl_30d=pnl_30d,
             pnl_all_time=pnl_all_time,
+            perp_pnl_24h=perp_pnl_24h,
+            perp_pnl_7d=perp_pnl_7d,
+            perp_pnl_10d=perp_pnl_10d,
+            perp_pnl_14d=perp_pnl_14d,
+            perp_pnl_20d=perp_pnl_20d,
+            perp_pnl_21d=perp_pnl_21d,
+            perp_pnl_28d=perp_pnl_28d,
+            perp_pnl_30d=perp_pnl_30d,
+            perp_pnl_all_time=perp_pnl_all_time,
+            non_perp_pnl_24h=non_perp_pnl_24h,
+            non_perp_pnl_7d=non_perp_pnl_7d,
+            non_perp_pnl_30d=non_perp_pnl_30d,
+            non_perp_pnl_all_time=non_perp_pnl_all_time,
+            volume_24h=volume_24h,
+            volume_7d=volume_7d,
+            volume_30d=volume_30d,
+            volume_all_time=volume_all_time,
+            perp_volume_24h=perp_volume_24h,
+            perp_volume_7d=perp_volume_7d,
+            perp_volume_30d=perp_volume_30d,
+            perp_volume_all_time=perp_volume_all_time,
             account_value_history=account_value_history,
             realized_pnl_24h=realized_pnl_24h,
             realized_pnl_7d=realized_pnl_7d,

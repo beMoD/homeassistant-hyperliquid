@@ -39,10 +39,49 @@ SENSOR_WITHDRAWABLE = "withdrawable"
 SENSOR_POSITION = "position"
 SENSOR_TOTAL_VAULT_EQUITY = "total_vault_equity"
 SENSOR_VAULT = "vault"
+# Unified account breakdown, mirroring Hyperliquid's own equity panel.
+# account_value above is the panel's "Total Equity"; marginSummary only ever
+# describes the perp side, which is 0 while no perp position is open.
+SENSOR_TRADING_EQUITY = "trading_equity"
+SENSOR_STAKING_BALANCE = "staking_balance"
+SENSOR_STAKING_VALUE = "staking_value"
+SENSOR_MAX_DRAWDOWN_24H = "max_drawdown_24h"
+SENSOR_MAX_DRAWDOWN_7D = "max_drawdown_7d"
+SENSOR_MAX_DRAWDOWN_30D = "max_drawdown_30d"
+SENSOR_MAX_DRAWDOWN_ALL_TIME = "max_drawdown_all_time"
 SENSOR_PNL_24H = "pnl_24h"
 SENSOR_PNL_7D = "pnl_7d"
 SENSOR_PNL_30D = "pnl_30d"
 SENSOR_PNL_ALL_TIME = "pnl_all_time"
+# Perp-only P&L, from the portfolio endpoint's perp* periods. Unlike the
+# pnl_* sensors above (which take a whole series end-to-end) these are cut to
+# the exact window: perpMonth actually spans ~30.8 days, so an uncut "30d"
+# would overstate the window by nearly a day.
+SENSOR_PERP_PNL_24H = "perp_pnl_24h"
+SENSOR_PERP_PNL_7D = "perp_pnl_7d"
+SENSOR_PERP_PNL_10D = "perp_pnl_10d"
+SENSOR_PERP_PNL_14D = "perp_pnl_14d"
+SENSOR_PERP_PNL_20D = "perp_pnl_20d"
+SENSOR_PERP_PNL_21D = "perp_pnl_21d"
+SENSOR_PERP_PNL_28D = "perp_pnl_28d"
+SENSOR_PERP_PNL_30D = "perp_pnl_30d"
+SENSOR_PERP_PNL_ALL_TIME = "perp_pnl_all_time"
+# Everything that is not a perp position: spot holdings plus vaults. The API
+# has no bucket for this, it is total minus perp over the same window.
+SENSOR_NON_PERP_PNL_24H = "non_perp_pnl_24h"
+SENSOR_NON_PERP_PNL_7D = "non_perp_pnl_7d"
+SENSOR_NON_PERP_PNL_30D = "non_perp_pnl_30d"
+SENSOR_NON_PERP_PNL_ALL_TIME = "non_perp_pnl_all_time"
+# Trading volume, from each period's "vlm" field. The unprefixed sensors are
+# the total (perps + spot + vaults), the perp_* ones the perp share.
+SENSOR_VOLUME_24H = "volume_24h"
+SENSOR_VOLUME_7D = "volume_7d"
+SENSOR_VOLUME_30D = "volume_30d"
+SENSOR_VOLUME_ALL_TIME = "volume_all_time"
+SENSOR_PERP_VOLUME_24H = "perp_volume_24h"
+SENSOR_PERP_VOLUME_7D = "perp_volume_7d"
+SENSOR_PERP_VOLUME_30D = "perp_volume_30d"
+SENSOR_PERP_VOLUME_ALL_TIME = "perp_volume_all_time"
 SENSOR_REALIZED_PNL_24H = "realized_pnl_24h"
 SENSOR_REALIZED_PNL_7D = "realized_pnl_7d"
 SENSOR_REALIZED_PNL_30D = "realized_pnl_30d"
@@ -59,6 +98,14 @@ SENSOR_REFERRAL_VOLUME = "referral_volume"
 
 # Units
 CURRENCY_USD = "USD"
+# Staking on Hyperliquid is HYPE only, so the balance is denominated in HYPE
+# and its USD equivalent is a separate sensor.
+TOKEN_HYPE = "HYPE"
+PERCENTAGE = "%"
+
+# Only HYPE can be staked on Hyperliquid, so the staking balance is quoted in
+# HYPE and its USD equivalent is derived from the HYPE spot price.
+STAKING_TOKEN = TOKEN_HYPE
 
 # Attributes for position sensors
 ATTR_COIN = "coin"
