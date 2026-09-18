@@ -26,6 +26,8 @@ from .const import (
     DEFAULT_UPDATE_INTERVAL,
     DOMAIN,
     FILL_HISTORY_DAYS,
+    FILL_PAGE_SIZE,
+    MAX_FILL_PAGES,
     STAKING_TOKEN,
     UPDATE_TIMEOUT,
 )
@@ -193,6 +195,41 @@ class HyperliquidDataUpdateCoordinator(DataUpdateCoordinator[HyperliquidAccountD
                 pairs[tokens[0]] = name
         return pairs
 
+    def _fetch_fills(
+        self, wallet_address: str, start_time: int, end_time: int
+    ) -> list[dict[str, Any]]:
+        """All fills in the window, paginated past the per-call limit.
+
+        userFillsByTime returns at most FILL_PAGE_SIZE fills, oldest first, and
+        silently drops the rest — on an active account a single call covers
+        only the start of the window and the 24h bucket stays empty.
+        """
+        fills: list[dict[str, Any]] = []
+        seen: set[Any] = set()
+        cursor = start_time
+        for _ in range(MAX_FILL_PAGES):
+            page = self._info.user_fills_by_time(wallet_address, cursor, end_time) or []
+            for fill in page:
+                # Restarting at the last timestamp re-fetches fills that share
+                # that millisecond; tid identifies a fill uniquely.
+                key = fill.get("tid")
+                if key in seen:
+                    continue
+                seen.add(key)
+                fills.append(fill)
+            if len(page) < FILL_PAGE_SIZE:
+                return fills
+            last_time = max(fill.get("time", 0) for fill in page)
+            # A full page within a single millisecond would never advance.
+            cursor = last_time if last_time > cursor else cursor + 1
+        _LOGGER.warning(
+            "More than %d fills in the last %d days; fill-based sensors "
+            "(trades, fees, realized P&L) are incomplete for the newest fills",
+            MAX_FILL_PAGES * FILL_PAGE_SIZE,
+            FILL_HISTORY_DAYS,
+        )
+        return fills
+
     def _fetch_all_data_inner(self, wallet_address: str) -> dict[str, Any]:
         """Inner fetch — called after Info is initialized."""
         from datetime import datetime, timedelta, timezone
@@ -246,7 +283,7 @@ class HyperliquidDataUpdateCoordinator(DataUpdateCoordinator[HyperliquidAccountD
             now = datetime.now(tz=timezone.utc)
             end_time = int(now.timestamp() * 1000)
             start_time = int((now - timedelta(days=FILL_HISTORY_DAYS)).timestamp() * 1000)
-            trade_fills = self._info.user_fills_by_time(wallet_address, start_time, end_time) or []
+            trade_fills = self._fetch_fills(wallet_address, start_time, end_time)
         except Exception as err:
             _LOGGER.debug("Failed to fetch trade fills: %s", err)
 

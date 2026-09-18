@@ -23,6 +23,11 @@ MAX_TRADE_HISTORY_DAYS = 30
 # complete regardless of CONF_TRADE_HISTORY_DAYS, which only limits the
 # "recent trades" attribute list.
 FILL_HISTORY_DAYS = 30
+# userFillsByTime returns at most this many fills per call, oldest first.
+FILL_PAGE_SIZE = 2000
+# Upper bound on pages per update, so a very active account cannot eat the
+# whole UPDATE_TIMEOUT budget. 10 pages = 20,000 fills in the window.
+MAX_FILL_PAGES = 10
 
 # Per-request HTTP timeout (seconds) passed to the SDK so a hung connection
 # cannot freeze the executor thread (and with it the coordinator) indefinitely.

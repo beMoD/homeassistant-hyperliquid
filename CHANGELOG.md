@@ -5,6 +5,25 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.3.2] - 2026-09-18
+
+### Fixed
+
+- **Fill-based sensors froze on active accounts.** The fills were fetched with
+  a single `userFillsByTime` call over 30 days, but that endpoint returns at
+  most 2000 fills, oldest first, and silently drops the rest. Once an account
+  had more than 2000 fills in 30 days, only the start of the window arrived:
+  `trades_24h`, `fees_paid_24h` and `realized_pnl_24h` / `realized_pnl_7d`
+  read `0`, and `realized_pnl_30d` / `fees_paid_30d` were missing the most
+  recent days. No error was raised, so nothing showed up in the log.
+
+  The fills are now fetched page by page until the window is complete, up to
+  20,000 fills. Beyond that, a warning is logged. The affected sensors jump to
+  their correct values after the update; their earlier history is too low.
+
+  The `volume_*`, `pnl_*` and `perp_pnl_*` sensors come from the portfolio
+  endpoint and were not affected.
+
 ## [0.3.1] - 2026-08-30
 
 ### Fixed
