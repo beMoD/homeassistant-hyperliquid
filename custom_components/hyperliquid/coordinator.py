@@ -112,6 +112,10 @@ class HyperliquidAccountData:
     open_orders: list[dict[str, Any]]
     referral_earnings: float
     referral_volume: float
+    referral_unclaimed_rewards: float
+    referral_claimed_rewards: float
+    builder_rewards: float
+    referral_count: int
     referral_data: dict[str, Any]
 
 
@@ -848,14 +852,30 @@ class HyperliquidDataUpdateCoordinator(DataUpdateCoordinator[HyperliquidAccountD
         # Referral data
         referral_earnings = 0.0
         referral_volume = 0.0
+        referral_unclaimed = 0.0
+        referral_claimed = 0.0
+        builder_rewards = 0.0
+        referral_count = 0
         referral_info = {}
 
         if referral_data:
-            referral_earnings = float(referral_data.get("totalReferralUsdc", 0))
-            referral_volume = float(referral_data.get("totalReferralVolume", 0))
+            # Rewards are string-encoded USDC amounts. "referredBy" and
+            # "referrerState" can be null (no referrer / no code created).
+            referral_unclaimed = float(referral_data.get("unclaimedRewards") or 0)
+            referral_claimed = float(referral_data.get("claimedRewards") or 0)
+            builder_rewards = float(referral_data.get("builderRewards") or 0)
+            referral_earnings = referral_unclaimed + referral_claimed
+
+            referred_by = referral_data.get("referredBy") or {}
+            referrer_data = (referral_data.get("referrerState") or {}).get("data") or {}
+            referee_states = referrer_data.get("referralStates") or []
+            referral_count = int(referrer_data.get("nReferrals") or len(referee_states))
+            referral_volume = sum(float(r.get("cumVlm") or 0) for r in referee_states)
             referral_info = {
-                "referrer": referral_data.get("referrer", ""),
-                "referee_count": len(referral_data.get("referees", [])),
+                "referrer": referred_by.get("referrer", ""),
+                "referred_by_code": referred_by.get("code", ""),
+                "referral_code": referrer_data.get("code", ""),
+                "referee_count": referral_count,
             }
 
         return HyperliquidAccountData(
@@ -915,6 +935,10 @@ class HyperliquidDataUpdateCoordinator(DataUpdateCoordinator[HyperliquidAccountD
             open_orders=parsed_orders,
             referral_earnings=referral_earnings,
             referral_volume=referral_volume,
+            referral_unclaimed_rewards=referral_unclaimed,
+            referral_claimed_rewards=referral_claimed,
+            builder_rewards=builder_rewards,
+            referral_count=referral_count,
             referral_data=referral_info,
         )
 

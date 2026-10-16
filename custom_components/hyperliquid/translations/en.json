@@ -182,6 +182,18 @@
       },
       "referral_volume": {
         "name": "Referral Volume"
+      },
+      "referral_unclaimed_rewards": {
+        "name": "Referral Unclaimed Rewards"
+      },
+      "referral_claimed_rewards": {
+        "name": "Referral Claimed Rewards"
+      },
+      "builder_rewards": {
+        "name": "Builder Rewards"
+      },
+      "referral_count": {
+        "name": "Referral Count"
       }
     }
   }

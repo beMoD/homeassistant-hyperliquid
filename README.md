@@ -27,7 +27,7 @@ Mirrors the equity panel of the Hyperliquid web interface:
 - **Trading volume**, total and perpetuals only
 - **Max drawdown** as the largest peak-to-trough drop, per period
 - **Trade count** and **open order count**
-- **Referral earnings and volume**
+- **Referral rewards** (unclaimed, claimed), referee count and volume, **builder rewards**
 
 ### Position Tracking (Dynamic)
 Each open perpetual position gets its own sensor showing unrealized PnL with attributes:
@@ -154,7 +154,11 @@ For any window, `pnl` equals `perp_pnl` plus `non_perp_pnl`.
 | `max_drawdown_24h`, `max_drawdown_7d`, `max_drawdown_30d`, `max_drawdown_all_time` | Largest peak-to-trough drop | % |
 | `trades_24h` | Number of fills | - |
 | `open_orders_count` | Currently open orders | - |
-| `referral_earnings`, `referral_volume` | Referral program | USD |
+| `referral_earnings` | Referral rewards, unclaimed + claimed | USD |
+| `referral_unclaimed_rewards`, `referral_claimed_rewards` | Referral rewards by claim status | USD |
+| `builder_rewards` | Builder code rewards | USD |
+| `referral_volume` | Combined trading volume of your referees | USD |
+| `referral_count` | Number of referees | - |
 
 ### Dynamic Sensors (Per Position)
 

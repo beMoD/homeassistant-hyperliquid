@@ -100,6 +100,10 @@ SENSOR_OPEN_ORDERS_COUNT = "open_orders_count"
 SENSOR_ORDER = "order"
 SENSOR_REFERRAL_EARNINGS = "referral_earnings"
 SENSOR_REFERRAL_VOLUME = "referral_volume"
+SENSOR_REFERRAL_UNCLAIMED = "referral_unclaimed_rewards"
+SENSOR_REFERRAL_CLAIMED = "referral_claimed_rewards"
+SENSOR_BUILDER_REWARDS = "builder_rewards"
+SENSOR_REFERRAL_COUNT = "referral_count"
 
 # Units
 CURRENCY_USD = "USD"

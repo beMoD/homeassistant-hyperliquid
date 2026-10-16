@@ -5,6 +5,32 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.3.3] - 2026-10-17
+
+### Fixed
+
+- **Referral sensors always read `0`.** The parser looked for the fields
+  `totalReferralUsdc`, `totalReferralVolume` and `referees`, none of which the
+  `referral` endpoint returns, and read `referredBy` as a string although it is
+  an object. The rewards are now read from `unclaimedRewards` and
+  `claimedRewards`, the referee data from `referrerState`.
+
+  `referral_earnings` and `referral_volume` jump from `0` to their real values
+  after the update; their earlier history is too low.
+
+### Added
+
+- Four new sensors (53 in total): `referral_unclaimed_rewards`,
+  `referral_claimed_rewards`, `builder_rewards` and `referral_count`.
+
+### Changed
+
+- `referral_earnings` is now the sum of unclaimed and claimed rewards.
+  `referral_volume` is the combined volume of your referees.
+- Attributes of the referral sensors: `referrer` now holds the referrer's
+  address (it was always empty), and `referred_by_code`, `referral_code` and
+  `referee_count` were added.
+
 ## [0.3.2] - 2026-09-18
 
 ### Fixed
