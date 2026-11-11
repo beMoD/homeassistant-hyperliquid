@@ -5,6 +5,18 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.3.4] - 2026-11-11
+
+### Added
+
+- Ship the integration's brand assets (icon and logo) locally in
+  `custom_components/hyperliquid/brand/`. Home Assistant 2026.3 and newer load
+  them from there instead of the central brands repository. Contributed by
+  @frenck in #1.
+
+No sensor or behaviour changes; existing entities and their history are
+unaffected.
+
 ## [0.3.3] - 2026-10-17
 
 ### Fixed
